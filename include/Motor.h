@@ -24,7 +24,7 @@ private:
     static constexpr uint8_t MAX_DUTY = 200;       // To avoid Flying away
     static constexpr uint8_t MIN_TARGET_FREQ = 60; // Minimum rotating speed, lower speed may result in inaccurate measurement
 
-    float PID_KP = 0.006;
+    float PID_KP = 0.005;
     float PID_KI = 0.02;
     float PID_KD = 0.02;
     int32_t lastError = 0;

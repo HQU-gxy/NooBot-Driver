@@ -26,7 +26,7 @@ constexpr uint8_t I2C1_SCL_PIN = PA15;
 constexpr float MAGNETIC_DECLINATION = -(4.0 + (38.0 / 60.0)) / (180 / PI);
 
 // UART pins
-// Reserve for future peripherals
+// Reserve for future peripherals (like LoraLink)
 constexpr uint8_t UART1_TX_PIN = PB6;
 constexpr uint8_t UART1_RX_PIN = PB7;
 // For debugging

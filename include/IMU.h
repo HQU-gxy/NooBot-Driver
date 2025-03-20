@@ -4,7 +4,7 @@
 
 namespace IMU
 {
-    struct IMUData
+    struct __attribute__((packed)) IMUData
     {
         float accelX;
         float accelY;

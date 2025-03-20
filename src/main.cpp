@@ -7,12 +7,11 @@
 #include <ulog.h>
 #include <utility>
 
-#include "LoraLink.h"
 #include "SensorCollector.h"
 #include "Magnetometer.h"
 #include "IMU.h"
 #include "Motor.h"
-#include "UpLink.h"
+#include "UpLink.hpp"
 #include "config.h"
 
 /**
@@ -60,68 +59,71 @@ void app_main(void *)
   Motor rightMotor(MOTOR2_IN1_PIN, MOTOR2_IN2_PIN, MOTOR2_EN_PIN, MOTOR2_ENC_CFG, MOTOR2_INVERTED);
 
 #if defined(USE_LORA) && USE_LORA
-  auto onLoraCommand = [&leftMotor, &rightMotor](float linear, float angular)
+  auto onUpLinkCommand = [&leftMotor, &rightMotor](float linear, float angular)
   {
     auto [leftSpeed, rightSpeed] = carSpeedToMotorSpeed(linear, angular);
     leftMotor.setSpeed(leftSpeed);
     rightMotor.setSpeed(rightSpeed);
   };
 
-  auto onLoraLinkLost = [&leftMotor, &rightMotor]()
+  auto getStatus = [&leftMotor, &rightMotor]() -> std::tuple<float, float, IMU::IMUData>
   {
-    leftMotor.setSpeed(0);
-    rightMotor.setSpeed(0);
-    ULOG_WARNING("LoraLink connection lost");
-  };
-
-  LoraLink::setOnCommandCallback(onLoraCommand);
-  LoraLink::setOnLinkLostCallback(onLoraLinkLost);
-  LoraLink::begin(Serial1);
-#endif
-
-  while (1)
-  {
-    auto heading = Magneto::getHeading();
-
     IMU::IMUData imuData;
     IMU::getData(&imuData);
 
     auto leftSpeed = leftMotor.getSpeed();
     auto rightSpeed = rightMotor.getSpeed();
+    auto [linear, angular] = motorSpeedToCarSpeed(leftSpeed, rightSpeed);
+
+    return {linear, angular, imuData};
+  };
+
+  enum : uint8_t
+  {
+    LORA,
+    COMPUTER
+  } activeUplink = LORA;
+
+  UpLink loraLink(Serial1, UART1_TX_PIN, UART1_RX_PIN, 38400);
+  loraLink.setGetStatusFunc(getStatus);
+  loraLink.setOnCmdCallback([&activeUplink, &onUpLinkCommand](float linear, float angular)
+                            { if (activeUplink == LORA)
+                                onUpLinkCommand(linear, angular); });
+
+  loraLink.setOnConnectCallback([&activeUplink]()
+                                { activeUplink = LORA;
+                                  ULOG_INFO("LoraLink connected"); });
+
+  loraLink.setOnLinkLostCallback([&activeUplink, &leftMotor, &rightMotor]()
+                                 { activeUplink = COMPUTER;
+                                   leftMotor.setSpeed(0);
+                                   rightMotor.setSpeed(0);
+                                   ULOG_WARNING("LoraLink connection lost"); });
+
+  UpLink computerLink(Serial3, UART3_TX_PIN, UART3_RX_PIN, 115200);
+  computerLink.setGetStatusFunc(getStatus);
+  computerLink.setOnCmdCallback([&activeUplink, &onUpLinkCommand](float linear, float angular)
+                                { if (activeUplink == COMPUTER)
+                                    onUpLinkCommand(linear, angular); });
+
+  computerLink.setOnConnectCallback([]
+                                    { ULOG_INFO("Computer connected"); });
+
+  computerLink.setOnLinkLostCallback([&activeUplink, &leftMotor, &rightMotor]()
+                                     {
+                                      leftMotor.setSpeed(0);
+                                      rightMotor.setSpeed(0);
+                                      ULOG_WARNING("Computer connection lost"); });
+
+#endif
+
+  while (1)
+  {
 
     tft.fillScreen(TFT_BLACK);
     tft.setCursor(0, 0);
-    tft.print("Left: ");
-    tft.println(leftSpeed);
-    tft.print("Right: ");
-    tft.println(rightSpeed);
 
     vTaskDelay(pdMS_TO_TICKS(100));
-
-    // // Show the IMU data on the TFT
-    // tft.drawPixel(cursor, 40 + imuData.accelX * 2, TFT_RED);
-    // tft.drawPixel(cursor, 40 + imuData.accelY * 2, TFT_GREEN);
-    // tft.drawPixel(cursor, 40 + imuData.accelZ * 2, TFT_CYAN);
-    // cursor = cursor < 80 ? cursor + 1 : 0;
-    // tft.drawFastVLine(cursor, 0, 80, TFT_BLACK);
-
-    // Show the heading on the TFT
-    // tft.fillCircle(120, 40, 20, TFT_BLACK);
-    // tft.drawCircle(120, 40, 20, TFT_ORANGE);
-    // tft.drawLine(120, 40, 120 + 20 * arm_cos_f32(heading * DEG_TO_RAD), 40 - 20 * arm_sin_f32(heading * DEG_TO_RAD), TFT_WHITE);
-    // vTaskDelay(50 / portTICK_PERIOD_MS);
-
-    // if (button1Pressed || (Serial2.available() && Serial2.read() == 'c'))
-    // {
-    //   tft.fillScreen(TFT_BLACK);
-    //   tft.setCursor(0, 0);
-    //   tft.println("Calibrating the compass");
-    //   tft.println("Please rotate the device in all directions");
-    //   Magneto::runCalibration(&tft);
-    //   tft.println("Calibration done");
-    //   vTaskDelay(1000 / portTICK_PERIOD_MS);
-    //   button1Pressed = false;
-    // }
   }
 }
 
@@ -185,10 +187,6 @@ void setup(void)
   Serial2.setTx(UART2_TX_PIN);
   Serial2.setRx(UART2_RX_PIN);
   Serial2.begin(115200);
-
-  Serial3.setTx(UART3_TX_PIN);
-  Serial3.setRx(UART3_RX_PIN);
-  Serial3.begin(115200);
 
   ulog_init();
   ulog_subscribe([](ulog_level_t severity, char *msg)
