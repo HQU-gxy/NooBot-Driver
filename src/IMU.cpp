@@ -16,6 +16,7 @@ namespace IMU
 
     constexpr uint8_t AVR_SAMPLES_COUNT = 8;
     IMUData collectedData[AVR_SAMPLES_COUNT]{IMUData{0}};
+    uint8_t readIndex = 0;
 
     void readSensors()
     {
@@ -25,17 +26,14 @@ namespace IMU
         accel.readSensor();
         gyro.readSensor();
 
-        // A shift register would be useful here
-        for (size_t i = 0; i < AVR_SAMPLES_COUNT - 1; i++)
-        {
-            collectedData[i] = collectedData[i + 1];
-        }
-        collectedData[AVR_SAMPLES_COUNT - 1] = IMUData{accel.getAccelX_mss(),
-                                                       accel.getAccelY_mss(),
-                                                       accel.getAccelZ_mss(),
-                                                       gyro.getGyroX_rads(),
-                                                       gyro.getGyroY_rads(),
-                                                       gyro.getGyroZ_rads()};
+        collectedData[readIndex++] = IMUData{accel.getAccelX_mss(),
+                                             accel.getAccelY_mss(),
+                                             accel.getAccelZ_mss(),
+                                             gyro.getGyroX_rads(),
+                                             gyro.getGyroY_rads(),
+                                             gyro.getGyroZ_rads()};
+        if (readIndex >= AVR_SAMPLES_COUNT)
+            readIndex = 0;
     }
 
     bool begin()
@@ -64,7 +62,7 @@ namespace IMU
 
     void getData(IMUData *data)
     {
-        float32_t temp[] = {0, 0, 0, 0, 0, 0};
+        float32_t temp[6]{0};
         for (auto d : collectedData)
         {
             temp[0] += d.accelX;
