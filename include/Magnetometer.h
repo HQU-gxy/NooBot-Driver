@@ -45,7 +45,7 @@ namespace Magneto
     };
 
     bool begin(Mode m = MODE_CONTINUOUS, DataRate odr = DATARATE_200HZ, Range rng = RANGE_2GA, OverSample osr = OVERSAMPLE_512);
-    void setCalibration(Calibration *calibration);
+    void setCalibration(const Calibration &calibration);
     void getCalibration(Calibration *calibration);
     // void runCalibration(Calibration *calibration);
     void runCalibration(void *params); // Show calibration data on TFT

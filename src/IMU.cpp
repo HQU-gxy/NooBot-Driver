@@ -18,6 +18,11 @@ namespace IMU
     IMUData collectedData[AVR_SAMPLES_COUNT]{IMUData{0}};
     uint8_t readIndex = 0;
 
+    /**
+     * @brief Read the sensor data and store it in the buffer
+     *
+     * @note This function is called in the sensor collector timer
+     */
     void readSensors()
     {
         if (!accel.getDrdyStatus())
@@ -36,6 +41,11 @@ namespace IMU
             readIndex = 0;
     }
 
+    /**
+     * @brief Initialize the IMU sensor and register the read function
+     *
+     * @return true if the initialization is successful
+     */
     bool begin()
     {
         if (accel.begin() < 0)
@@ -60,6 +70,11 @@ namespace IMU
         return true;
     }
 
+    /**
+     * @brief Get the average data from the buffer
+     *
+     * @param data Pointer to the IMUData structure to store the average data
+     */
     void getData(IMUData *data)
     {
         float32_t temp[6]{0};

@@ -29,14 +29,30 @@ namespace Magneto
     static MagData collectedData[AVR_SAMPLES_COUNT]{MagData{0}}; // Raw data buffer
     uint8_t readIndex = 0;                                       // Read index for the buffer
 
-    void writeRegister(uint8_t reg, uint8_t *val, uint8_t len = 1)
+    /**
+     * @brief Write data to the sensor register
+     *
+     * @param reg Register address
+     * @param data Pointer to the data
+     * @param len Length of the data to write, default is 1 byte
+     */
+    void writeRegister(uint8_t reg, uint8_t *data, uint8_t len = 1)
     {
         i2c1.beginTransmission(QMC5883_ADDR);
         i2c1.write(reg);
-        i2c1.write(val, len);
+        i2c1.write(data, len);
         i2c1.endTransmission();
     }
 
+    /**
+     * @brief Read data from the sensor register
+     *
+     * @param reg Register address
+     * @param data Pointer to the data buffer
+     * @param len Length of the data to read, default is 1 byte
+     *
+     * @return true if the read is successful
+     */
     bool readRegister(uint8_t reg, uint8_t *data, uint8_t len = 1)
     {
         i2c1.flush();
@@ -61,6 +77,11 @@ namespace Magneto
         return false;
     }
 
+    /**
+     * @brief Check if the data is ready to be read
+     *
+     * @return true if the data is ready
+     */
     inline bool dataReady()
     {
         uint8_t status;
@@ -68,6 +89,11 @@ namespace Magneto
         return status & 0x01;
     }
 
+    /**
+     * @brief Read the sensor data and store it in the buffer
+     *
+     * @note This function is called in the sensor collector timer
+     */
     void readSensor()
     {
         if (!dataReady())
@@ -91,6 +117,11 @@ namespace Magneto
             readIndex = 0;
     }
 
+    /**
+     * @brief Get the average raw data from the buffer
+     *
+     * @param data Pointer to the MagData structure to store the average data
+     */
     void getAvrRawData(MagData *data)
     {
         float32_t temp[3]{0};
@@ -107,48 +138,55 @@ namespace Magneto
         data->z = temp[2];
     }
 
-    bool getAvrRawDataWithCal(MagData *xyz)
+    /**
+     * @brief Get the average raw data with calibration applied
+     *
+     * @param data Pointer to the MagData structure to store the average data
+     * @return true
+     * @return false
+     */
+    void getAvrRawDataWithCal(MagData *data)
     {
-        int16_t data[3];
-        getAvrRawData(reinterpret_cast<MagData *>(data));
+        int16_t rawData[3];
+        getAvrRawData(reinterpret_cast<MagData *>(rawData));
 
-        arm_sub_q15(data, calibration.offset, data, 3);
+        arm_sub_q15(rawData, calibration.offset, rawData, 3);
         float32_t temp[3]{
-            data[0],
-            data[1],
-            data[2],
+            rawData[0],
+            rawData[1],
+            rawData[2],
         };
         arm_mult_f32(temp, calibration.gain, temp, 3);
-        xyz->x = temp[0];
-        xyz->y = temp[1];
-        xyz->z = temp[2];
-
-        return true;
+        data->x = temp[0];
+        data->y = temp[1];
+        data->z = temp[2];
     }
 
-    void setCalibration(Calibration *cal)
+    /**
+     * @brief Write the calibration data to the EEPROM and apply it
+     *
+     * @param cal The calibration data to write
+     */
+    void setCalibration(const Calibration &cal)
     {
         eeprom_buffer_fill();
         for (uint8_t i = 0; i < sizeof(Calibration); i++)
         {
-            eeprom_buffered_write_byte(QMC5883_CAL_ADDR + i, reinterpret_cast<uint8_t *>(cal)[i]);
+            eeprom_buffered_write_byte(QMC5883_CAL_ADDR + i, reinterpret_cast<const uint8_t *>(&cal)[i]);
         }
 
-        eeprom_buffer_flush();                  // Write the data to EEPROM
-        memcpy(&calibration, cal, sizeof(cal)); // Apply the calibration data
+        eeprom_buffer_flush();                   // Write the data to EEPROM
+        memcpy(&calibration, &cal, sizeof(cal)); // Apply the calibration data
     }
 
+    /**
+     * @brief Get the calibration data from the EEPROM
+     *
+     * @param cal Pointer to the Calibration structure to store the data
+     */
     void getCalibration(Calibration *cal)
     {
         eeprom_buffer_fill();
-        // cal->offsetX = eeprom_buffered_read_byte(QMC5883_CAL_ADDR) | (eeprom_buffered_read_byte(QMC5883_CAL_ADDR + 1) << 8);
-        // cal->gainX = eeprom_buffered_read_byte(QMC5883_CAL_ADDR + 2);
-
-        // cal->offsetY = eeprom_buffered_read_byte(QMC5883_CAL_ADDR + 3) | (eeprom_buffered_read_byte(QMC5883_CAL_ADDR + 4) << 8);
-        // cal->gainY = eeprom_buffered_read_byte(QMC5883_CAL_ADDR + 5);
-
-        // cal->offsetZ = eeprom_buffered_read_byte(QMC5883_CAL_ADDR + 6) | (eeprom_buffered_read_byte(QMC5883_CAL_ADDR + 7) << 8);
-        // cal->gainZ = eeprom_buffered_read_byte(QMC5883_CAL_ADDR + 8);
 
         for (uint8_t i = 0; i < sizeof(Calibration); i++)
         {
@@ -156,6 +194,12 @@ namespace Magneto
         }
     }
 
+    /**
+     * @brief A freaking naive calibration function
+     *
+     * @param params Pointer to the TFT_eSPI object to display the calibration data
+     * @note This function is called as a separate task, it's a very shitty way to do it, could be modified later
+     */
     void runCalibration(void *params)
     {
         MagData temp;
@@ -200,26 +244,15 @@ namespace Magneto
         cal.gain[0] = 1.0f;
         cal.gain[1] = static_cast<float>(maxData.y - minData.y) / static_cast<float>(maxData.x - minData.x);
         cal.gain[2] = static_cast<float>(maxData.z - minData.z) / static_cast<float>(maxData.x - minData.x);
-        setCalibration(&cal);
+        setCalibration(cal);
         ULOG_INFO("Compas calibration done");
     }
 
-    bool getGauss(float *xyz)
-    {
-        MagData data;
-        getAvrRawData(&data);
-
-        constexpr float QMC5883_16BIT_SENSITIVITY = 12000.0f;
-
-        xyz[0] = data.x;
-        xyz[1] = data.y;
-        xyz[2] = data.z;
-
-        arm_scale_f32(xyz, 1.0f / QMC5883_16BIT_SENSITIVITY, xyz, 3);
-
-        return true;
-    }
-
+    /**
+     * @brief Get the heading angle in degrees
+     *
+     * @return float The heading in degrees
+     */
     float getHeading()
     {
         MagData data;
@@ -234,6 +267,15 @@ namespace Magneto
         return heading;
     }
 
+    /**
+     * @brief Initialize the QMC5883 sensor
+     *
+     * @param m The mode of the sensor, default is continuous
+     * @param odr The output data rate, default is 200Hz
+     * @param rng The range of the sensor, default is 2GA
+     * @param osr The oversampling rate, default is 512
+     * @return true if the initialization is successful
+     */
     bool begin(Mode m, DataRate odr, Range rng, OverSample osr)
     {
         i2c1.begin();

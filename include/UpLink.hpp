@@ -40,6 +40,12 @@ private:
         uint8_t checksum;
     };
 
+    /**
+     * @brief Send the status of the robot
+     *
+     * @param handle Timer handle with the UpLink instance as ID
+     * @note This function is called by the FreeRTOS timer
+     */
     static void sendStat(TimerHandle_t handle)
     {
         auto uplink = reinterpret_cast<UpLink *>(pvTimerGetTimerID(handle));
@@ -64,6 +70,7 @@ private:
         } status{
             .currentLinear = currLinear,
             .currentAngular = currAngular,
+            .powerPercentage = 114,
             .imu = imuData,
         };
         auto bytes = reinterpret_cast<uint8_t *>(&status);
@@ -72,6 +79,13 @@ private:
         uplink->linkSerial->write(bytes, sizeof(status));
     }
 
+    /**
+     * @brief Calculate the `checksum` by XORing all the bytes
+     *
+     * @param buf The buffer to calculate the checksum from
+     * @param len The length of the buffer
+     * @return The checksum byte
+     */
     static uint8_t calcSum(const uint8_t *buf, size_t len)
     {
         uint8_t sum = 0;
@@ -82,6 +96,12 @@ private:
         return sum;
     }
 
+    /**
+     * @brief Check if a command is received or link is lost and call the callback functions
+     *
+     * @param handle Timer handle with the UpLink instance as ID
+     * @note This function is called by the FreeRTOS timer
+     */
     static void checkCmd(TimerHandle_t handle)
     {
         auto uplink = reinterpret_cast<UpLink *>(pvTimerGetTimerID(handle));
@@ -136,6 +156,14 @@ private:
     }
 
 public:
+    /**
+     * @brief Construct a new UpLink object
+     *
+     * @param ser The serial object used by this link
+     * @param tx_pin TX pin number
+     * @param rx_pin RX pin number
+     * @param baudrate Baudrate for this link
+     */
     UpLink(HardwareSerial &ser, uint32_t tx_pin, uint32_t rx_pin, uint32_t baudrate) : linkSerial(&ser)
     {
         linkSerial->setTx(tx_pin);
@@ -151,11 +179,31 @@ public:
         xTimerStart(checkCmdTimer, 0);
     }
 
+    /**
+     * @brief Set the callback function when a new command is coming
+     *
+     * @param cb The callback function
+     */
     inline void setOnCmdCallback(onUpLinkCommandCB cb) { onCmdCB = cb; }
 
+    /**
+     * @brief Set the callback function to get the bot status
+     *
+     * @param cb The callback function
+     */
     inline void setGetStatusFunc(getStatusFunc cb) { getStatus = cb; }
 
+    /**
+     * @brief Set the callback function when link is lost
+     *
+     * @param cb The callback function
+     */
     inline void setOnLinkLostCallback(callback_function_t cb) { onLinkLostCallback = cb; }
 
+    /**
+     * @brief Set the callback function when link is connected
+     *
+     * @param cb The callback function
+     */
     inline void setOnConnectCallback(callback_function_t cb) { onConnectCallback = cb; }
 };

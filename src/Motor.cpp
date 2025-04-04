@@ -4,6 +4,15 @@
 
 #include "Motor.h"
 
+/**
+ * @brief Construct a new Motor object
+ * 
+ * @param in1_pin In1 pin of the direction controlling
+ * @param in2_pin In2 pin of the direction controlling
+ * @param enable_pin Enable pin of the driving module
+ * @param encoder The encoder configuration of the hardware timer
+ * @param inverted Whether to invert the motor
+ */
 Motor::Motor(uint8_t in1_pin,
              uint8_t in2_pin,
              uint8_t enable_pin,
@@ -47,6 +56,11 @@ Motor::Motor(uint8_t in1_pin,
   ULOG_DEBUG("PID Timer started");
 }
 
+/**
+ * @brief Set the target speed of the motor
+ * 
+ * @param speed the target speed in m/s
+ */
 void Motor::setSpeed(float speed)
 {
   targetFreq = speed * SPEED_SCALE;
@@ -60,9 +74,15 @@ Motor::~Motor()
 {
 }
 
-void Motor::fuckPID(TimerHandle_t shit)
+/**
+ * @brief Read motor angle from the timer and perform PID
+ *
+ * @param handle Timer handle with the Motor instance as ID
+ * @note This function is called by the FreeRTOS timer
+ */
+void Motor::fuckPID(TimerHandle_t handle)
 {
-  auto motor = static_cast<Motor *>(pvTimerGetTimerID(shit));
+  auto motor = static_cast<Motor *>(pvTimerGetTimerID(handle));
   if (!motor)
   {
     ULOG_ERROR("Fuck PID is called without a Motor pointer passed in");
