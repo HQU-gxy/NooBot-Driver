@@ -27,6 +27,7 @@ namespace Magneto
 
     constexpr uint8_t AVR_SAMPLES_COUNT = 8;
     static MagData collectedData[AVR_SAMPLES_COUNT]{MagData{0}}; // Raw data buffer
+    uint8_t readIndex = 0;                                       // Read index for the buffer
 
     void writeRegister(uint8_t reg, uint8_t *val, uint8_t len = 1)
     {
@@ -82,16 +83,12 @@ namespace Magneto
             return;
         }
 
-        // A shift register would be useful here
-        for (size_t i = 0; i < AVR_SAMPLES_COUNT - 1; i++)
-        {
-            collectedData[i] = collectedData[i + 1];
-        }
-
         // Combine the bytes into 16-bit signed integers
-        collectedData[AVR_SAMPLES_COUNT - 1].x = (data[1] << 8) | data[0];
-        collectedData[AVR_SAMPLES_COUNT - 1].y = (data[3] << 8) | data[2];
-        collectedData[AVR_SAMPLES_COUNT - 1].z = (data[5] << 8) | data[4];
+        collectedData[readIndex].x = (data[1] << 8) | data[0];
+        collectedData[readIndex].y = (data[3] << 8) | data[2];
+        collectedData[readIndex].z = (data[5] << 8) | data[4];
+        if (++readIndex >= AVR_SAMPLES_COUNT)
+            readIndex = 0;
     }
 
     void getAvrRawData(MagData *data)
