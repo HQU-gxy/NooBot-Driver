@@ -36,7 +36,7 @@ namespace Magneto
      * @param data Pointer to the data
      * @param len Length of the data to write, default is 1 byte
      */
-    void writeRegister(uint8_t reg, uint8_t *data, uint8_t len = 1)
+    static void writeRegister(uint8_t reg, const uint8_t *data, uint8_t len = 1)
     {
         i2c1.beginTransmission(QMC5883_ADDR);
         i2c1.write(reg);
@@ -53,7 +53,7 @@ namespace Magneto
      *
      * @return true if the read is successful
      */
-    bool readRegister(uint8_t reg, uint8_t *data, uint8_t len = 1)
+    static bool readRegister(uint8_t reg, uint8_t *data, uint8_t len = 1)
     {
         i2c1.flush();
         i2c1.beginTransmission(QMC5883_ADDR);
@@ -94,7 +94,7 @@ namespace Magneto
      *
      * @note This function is called in the sensor collector timer
      */
-    void readSensor()
+    static void readSensor()
     {
         if (!dataReady())
         {
@@ -276,7 +276,7 @@ namespace Magneto
      * @param osr The oversampling rate, default is 512
      * @return true if the initialization is successful
      */
-    bool begin(Mode m, DataRate odr, Range rng, OverSample osr)
+    bool begin(const Mode m, const DataRate odr, const Range rng, const OverSample osr)
     {
         i2c1.begin();
         uint8_t chipID;

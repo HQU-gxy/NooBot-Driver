@@ -44,15 +44,15 @@ namespace Magneto
         float gain[3];     // Gain for each axis
     };
 
-    bool begin(Mode m = MODE_CONTINUOUS, DataRate odr = DATARATE_200HZ, Range rng = RANGE_2GA, OverSample osr = OVERSAMPLE_512);
+    bool begin(const Mode m = MODE_CONTINUOUS, const DataRate odr = DATARATE_200HZ, const Range rng = RANGE_2GA, const OverSample osr = OVERSAMPLE_512);
     void setCalibration(const Calibration &calibration);
     void getCalibration(Calibration *calibration);
     // void runCalibration(Calibration *calibration);
     void runCalibration(void *params); // Show calibration data on TFT
-    inline String getCalibrationDataString(Calibration *calibration)
+    inline String getCalibrationDataString(const Calibration &calibration)
     {
-        return "OffsetX, Y, Z: " + String(calibration->offset[0]) + ", " + String(calibration->offset[1]) + ", " + String(calibration->offset[2]) + "\n" +
-               "GainX, Y, Z: " + String(calibration->gain[0]) + ", " + String(calibration->gain[1]) + ", " + String(calibration->gain[2]);
+        return "OffsetX, Y, Z: " + String(calibration.offset[0]) + ", " + String(calibration.offset[1]) + ", " + String(calibration.offset[2]) + "\n" +
+               "GainX, Y, Z: " + String(calibration.gain[0]) + ", " + String(calibration.gain[1]) + ", " + String(calibration.gain[2]);
     }
 
     float getHeading();
