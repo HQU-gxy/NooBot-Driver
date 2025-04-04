@@ -49,7 +49,7 @@ std::pair<float, float> motorSpeedToCarSpeed(float left, float right)
 TFT_eSPI tft;
 void app_main(void *)
 {
-  // SensorCollector::begin();
+  SensorCollector::begin();
 
   bool button1Pressed = false;
   attachInterrupt(BUTTON1_PIN, [&button1Pressed]()
@@ -235,7 +235,6 @@ void setup(void)
   xTaskCreate(tunePID, "Tune PID", 1024, nullptr, osPriorityHigh, nullptr);
 
 #else
-  // Uplink::begin();
   xTaskCreate(app_main, "Main App", 1024, nullptr, osPriorityHigh, nullptr);
 #endif // PID_TUNING
 

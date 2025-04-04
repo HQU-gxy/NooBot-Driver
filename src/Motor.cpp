@@ -4,56 +4,6 @@
 
 #include "Motor.h"
 
-void fuckPID(TimerHandle_t shit)
-{
-  auto motor = static_cast<Motor *>(pvTimerGetTimerID(shit));
-  if (!motor)
-  {
-    ULOG_ERROR("Fuck PID is called without a Motor pointer passed in");
-    return;
-  }
-
-  auto currentCounter = static_cast<int16_t>(LL_TIM_GetCounter(motor->encoderTimer->getHandle()->Instance) & 0xffff);
-  motor->freqMeasured = motor->inverse ? (-currentCounter * (1000 / motor->PID_PERIOD))
-                                       : (currentCounter * (1000 / motor->PID_PERIOD));
-
-  LL_TIM_SetCounter(motor->encoderTimer->getHandle()->Instance, 0);
-
-  // An incredibly shitty PID implementation
-
-  int32_t currentError = motor->targetFreq - motor->freqMeasured;
-  int32_t output = motor->lastOutput + motor->PID_KP * (currentError - motor->lastError) +
-                   motor->PID_KI * currentError +
-                   motor->PID_KD * (currentError - 2 * motor->lastError + motor->lastLastError);
-
-  if (output < 0)
-    motor->setDirection(1);
-  else
-    motor->setDirection(0);
-
-  motor->setDuty(output < 0 ? -output : output);
-
-  motor->lastOutput = output;
-  motor->lastError = currentError;
-  motor->lastLastError = motor->lastError;
-
-#ifdef PID_TUNING
-  struct __attribute__((packed))
-  {
-    uint8_t header = 0x69;
-    int32_t freq;
-    int32_t error;
-    int32_t output;
-    char shit[4] = {'s', 'h', 'i', 't'};
-  } pidStatus{
-      .freq = motor->freqMeasured,
-      .error = currentError,
-      .output = output,
-  };
-  Serial3.write(reinterpret_cast<char *>(&pidStatus), sizeof(pidStatus));
-#endif
-}
-
 Motor::Motor(uint8_t in1_pin,
              uint8_t in2_pin,
              uint8_t enable_pin,
@@ -108,4 +58,54 @@ void Motor::setSpeed(float speed)
 
 Motor::~Motor()
 {
+}
+
+void Motor::fuckPID(TimerHandle_t shit)
+{
+  auto motor = static_cast<Motor *>(pvTimerGetTimerID(shit));
+  if (!motor)
+  {
+    ULOG_ERROR("Fuck PID is called without a Motor pointer passed in");
+    return;
+  }
+
+  auto currentCounter = static_cast<int16_t>(LL_TIM_GetCounter(motor->encoderTimer->getHandle()->Instance) & 0xffff);
+  motor->freqMeasured = motor->inverse ? (-currentCounter * (1000 / motor->PID_PERIOD))
+                                       : (currentCounter * (1000 / motor->PID_PERIOD));
+
+  LL_TIM_SetCounter(motor->encoderTimer->getHandle()->Instance, 0);
+
+  // An incredibly shitty PID implementation
+
+  int32_t currentError = motor->targetFreq - motor->freqMeasured;
+  int32_t output = motor->lastOutput + motor->PID_KP * (currentError - motor->lastError) +
+                   motor->PID_KI * currentError +
+                   motor->PID_KD * (currentError - 2 * motor->lastError + motor->lastLastError);
+
+  if (output < 0)
+    motor->setDirection(1);
+  else
+    motor->setDirection(0);
+
+  motor->setDuty(output < 0 ? -output : output);
+
+  motor->lastOutput = output;
+  motor->lastError = currentError;
+  motor->lastLastError = motor->lastError;
+
+#ifdef PID_TUNING
+  struct __attribute__((packed))
+  {
+    uint8_t header = 0x69;
+    int32_t freq;
+    int32_t error;
+    int32_t output;
+    char shit[4] = {'s', 'h', 'i', 't'};
+  } pidStatus{
+      .freq = motor->freqMeasured,
+      .error = currentError,
+      .output = output,
+  };
+  Serial3.write(reinterpret_cast<char *>(&pidStatus), sizeof(pidStatus));
+#endif
 }

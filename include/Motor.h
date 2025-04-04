@@ -112,5 +112,5 @@ public:
      *
      * Used in an OS timer, don't call it manually
      */
-    friend void fuckPID(TimerHandle_t);
+    static void fuckPID(TimerHandle_t);
 };
