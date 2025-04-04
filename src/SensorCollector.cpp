@@ -12,6 +12,11 @@ namespace SensorCollector
     static std::vector<callback_function_t> sensorCallbacks;
     static uint8_t sensorCount = 0;
 
+    /**
+     * @brief Get the sensors collecting data
+     *
+     * @note This function is called by the FreeRTOS timer
+     */
     void collectData(TimerHandle_t)
     {
         for (auto &cb : sensorCallbacks)
@@ -20,12 +25,21 @@ namespace SensorCollector
         }
     }
 
+    /**
+     * @brief Initialize the sensor collector
+     */
     void begin()
     {
         auto sensor_handle = xTimerCreate("Sensor Read", SENSOR_READ_PERIOD, pdTRUE, nullptr, collectData);
         xTimerStart(sensor_handle, 0);
     }
 
+    /**
+     * @brief Register a sensor callback function
+     *
+     * @param name The name of the sensor, used only for debugging
+     * @param readFunc The callback function to read the sensor data
+     */
     void registerSensorCb(String name, callback_function_t readFunc)
     {
         if (!readFunc)
