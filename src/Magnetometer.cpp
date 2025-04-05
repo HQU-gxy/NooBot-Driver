@@ -152,9 +152,9 @@ namespace Magneto
 
         arm_sub_q15(rawData, calibration.offset, rawData, 3);
         float32_t temp[3]{
-            rawData[0],
-            rawData[1],
-            rawData[2],
+            static_cast<float32_t>(rawData[0]),
+            static_cast<float32_t>(rawData[1]),
+            static_cast<float32_t>(rawData[2]),
         };
         arm_mult_f32(temp, calibration.gain, temp, 3);
         data->x = temp[0];

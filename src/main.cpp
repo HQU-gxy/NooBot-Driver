@@ -10,7 +10,7 @@
 #include "SensorCollector.h"
 #include "Magnetometer.h"
 #include "IMU.h"
-#include "Motor.h"
+#include "Motor.hpp"
 #include "UpLink.hpp"
 #include "config.h"
 
